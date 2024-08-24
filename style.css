@@ -34,6 +34,12 @@ body {
   margin-bottom: 36px;
 }
 
+#lottie-animation {
+  width: 150px;
+  height: 150px;
+  margin: 16px auto;
+}
+
 h1 {
   color: var(--text-color);
   margin: 0;
@@ -63,16 +69,23 @@ button {
   justify-content: center;
   text-transform: uppercase;
   letter-spacing: 0.6px;
-  background-color: var(--secondary-color);
-  color: var(--primary-color);
-  width: 100%;
 }
 
 button i {
   margin-right: 7.2px;
 }
 
-button:hover {
+#createRoomButton,
+#enterButton,
+#joinRoomButton {
+  background-color: var(--secondary-color);
+  color: var(--primary-color);
+  width: 100%;
+}
+
+#createRoomButton:hover,
+#enterButton:hover,
+#joinRoomButton:hover {
   background-color: #fab5b5;
   transform: translateY(-2.4px);
   box-shadow: 0 4.8px 7.2px rgba(0, 0, 0, 0.1);
@@ -100,18 +113,37 @@ button:hover {
   background-color: var(--muted-color);
 }
 
-.room-card {
-  background-color: var(--secondary-color);
-  border-radius: 15px;
-  padding: 15px;
-  margin-bottom: 15px;
-  cursor: pointer;
-  transition: all 0.3s ease;
+.hidden {
+  display: none !important;
 }
 
-.room-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+#nameInputContainer,
+#createRoomContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+#userNameInput,
+#roomTitleInput {
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 5px;
+  font-size: 1rem;
+}
+
+#roomsList {
+  margin-top: 20px;
+}
+
+.room-card {
+  background-color: var(--secondary-color);
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 10px;
+  text-align: left;
+  cursor: pointer;
 }
 
 .room-card h3 {
@@ -120,13 +152,17 @@ button:hover {
 }
 
 .room-card p {
-  margin: 5px 0 0;
+  margin: 5px 0;
   color: var(--primary-color);
-  opacity: 0.8;
+  font-size: 0.9rem;
 }
 
-#roomsList {
-  margin-bottom: 20px;
+#welcomeMessage,
+#roomTitle,
+#participantsCount {
+  color: var(--text-color);
+  font-weight: 600;
+  margin-top: 1rem;
 }
 
 @media (max-width: 480px) {
@@ -143,37 +179,31 @@ button:hover {
     font-size: 0.96rem;
   }
 
-  button {
-    font-size: 0.9rem;
-    padding: 10px 20px;
+  #lottie-animation {
+    width: 120px;
+    height: 120px;
+  }
+
+  #disconnectButton,
+  #muteButton {
+    font-size: 0.8rem;
+    padding: 10px 5px;
+  }
+
+  button i {
+    margin-right: 4px;
   }
 }
 
-#usernameInput {
-  width: 100%;
-  padding: 12px;
-  margin-bottom: 15px;
-  border: none;
-  border-radius: 30px;
-  font-size: 1rem;
-  text-align: center;
-}
+@media (max-width: 350px) {
 
-#participantsGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-  gap: 15px;
-  margin-bottom: 20px;
-}
+  #disconnectButton,
+  #muteButton {
+    font-size: 0.7rem;
+    padding: 8px 4px;
+  }
 
-.participant-avatar {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: white;
+  button i {
+    margin-right: 2px;
+  }
 }

@@ -3,21 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Fun Drops - Rooms</title>
+    <title>Club Together - Rooms</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <div class="app-header">
-            <h1><i class="fas fa-users"></i> Fun Drops</h1>
-            <p class="caption">Available Rooms</p>
+            <h1><i class="fas fa-users"></i> Club Together</h1>
+            <p id="welcomeMessage"></p>
         </div>
         <div class="main-content">
-            <div id="roomsList"></div>
-            <button id="createRoomButton">
-                <i class="fas fa-plus-circle"></i> Create New Room
-            </button>
+            <div id="createRoomContainer">
+                <input type="text" id="roomTitleInput" placeholder="Enter room title">
+                <button id="createRoomButton">Create Room</button>
+            </div>
+            <div id="roomsList">
+                <!-- Room cards will be dynamically added here -->
+            </div>
         </div>
     </div>
     <script src="script.js"></script>
