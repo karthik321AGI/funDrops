@@ -86,6 +86,7 @@ async function getLocalStream() {
         audio: true,
         video: false
       });
+      localStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
       console.log('Local stream obtained');
     } catch (error) {
       console.error('Error accessing microphone:', error);
@@ -168,10 +169,10 @@ function updateRoomsList(rooms) {
       roomCard.className = 'room-card';
       roomCard.style.backgroundColor = getRandomColor(index);
       roomCard.innerHTML = `
-        <h3>${room.title}</h3>
-        <p>Host: ${room.hostName}</p>
-        <p>Participants: ${room.participants.length}</p>
-      `;
+       <h3>${room.title}</h3>
+       <p>Host: ${room.hostName}</p>
+       <p>Participants: ${room.participants.length}</p>
+     `;
       roomCard.addEventListener('click', () => {
         localStorage.setItem('currentRoomId', room.id);
         window.location.href = 'call.html';
@@ -196,6 +197,7 @@ function handleRoomJoined(data) {
   updateParticipantsList(data.participants);
   connectionAnimation.classList.add('hidden');
   callControls.classList.remove('hidden');
+  updateMuteButton();
 }
 
 function handleParticipantJoined(data) {
@@ -234,7 +236,6 @@ function updateParticipantsList(participants) {
   });
 }
 
-
 function getRandomColor() {
   const colors = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F67280', '#C06C84',
@@ -245,7 +246,6 @@ function getRandomColor() {
   ];
   return colors[Math.floor(Math.random() * colors.length)];
 }
-
 
 async function handleCallSignaling(data) {
   const peerConnection = peerConnections.get(data.senderId) || await createPeerConnection(data.senderId);
@@ -340,9 +340,17 @@ function leaveRoom() {
 
 function toggleMute() {
   isMuted = !isMuted;
-  localStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
-  muteButton.innerHTML = isMuted ? '<i class="fas fa-microphone-slash"></i> Unmute' : '<i class="fas fa-microphone"></i> Mute';
-  muteButton.classList.toggle('muted', isMuted);
+  if (localStream) {
+    localStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
+  }
+  updateMuteButton();
+}
+
+function updateMuteButton() {
+  if (muteButton) {
+    muteButton.innerHTML = isMuted ? '<i class="fas fa-microphone-slash"></i> Unmute' : '<i class="fas fa-microphone"></i> Mute';
+    muteButton.classList.toggle('muted', isMuted);
+  }
 }
 
 // Initialize WebSocket connection when the script loads
