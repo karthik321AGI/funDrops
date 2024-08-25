@@ -163,9 +163,10 @@ function updateRoomsList(rooms) {
   if (rooms.length === 0) {
     roomsList.innerHTML = '<p>No rooms available. Create one!</p>';
   } else {
-    rooms.forEach(room => {
+    rooms.forEach((room, index) => {
       const roomCard = document.createElement('div');
       roomCard.className = 'room-card';
+      roomCard.style.backgroundColor = getRandomColor(index);
       roomCard.innerHTML = `
         <h3>${room.title}</h3>
         <p>Host: ${room.hostName}</p>
@@ -178,6 +179,15 @@ function updateRoomsList(rooms) {
       roomsList.appendChild(roomCard);
     });
   }
+}
+
+function getRandomColor(index) {
+  const colors = [
+    '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F67280', '#C06C84',
+    '#6A0572', '#FEBF10', '#16A085', '#F39C12', '#3498DB', '#9B59B6', '#1ABC9C',
+    '#E74C3C', '#2980B9', '#E67E22', '#2ECC71', '#8E44AD', '#D35400', '#7F8C8D'
+  ];
+  return colors[index % colors.length];
 }
 
 function handleRoomJoined(data) {
@@ -202,13 +212,40 @@ function handleParticipantLeft(data) {
 }
 
 function updateParticipantsList(participants) {
-  participantsList.innerHTML = '<h3>Participants:</h3>';
+  participantsList.innerHTML = '';
   participants.forEach(participant => {
-    const participantElement = document.createElement('p');
-    participantElement.textContent = participant.name;
+    const participantElement = document.createElement('div');
+    participantElement.className = 'participant';
+
+    const avatar = document.createElement('div');
+    avatar.className = 'participant-avatar';
+    avatar.style.backgroundColor = getRandomColor();
+
+    // Extract the first two characters of the name and convert to uppercase
+    avatar.textContent = participant.name.substring(0, 2).toUpperCase();
+
+    const name = document.createElement('div');
+    name.className = 'participant-name';
+    name.textContent = participant.name;
+
+    participantElement.appendChild(avatar);
+    participantElement.appendChild(name);
     participantsList.appendChild(participantElement);
   });
 }
+
+
+function getRandomColor() {
+  const colors = [
+    '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F67280', '#C06C84',
+    '#6A0572', '#FEBF10', '#16A085', '#F39C12', '#3498DB', '#9B59B6', '#1ABC9C',
+    '#E74C3C', '#2980B9', '#E67E22', '#2ECC71', '#8E44AD', '#D35400', '#7F8C8D',
+    '#27AE60', '#C0392B', '#BDC3C7', '#2C3E50', '#95A5A6', '#34495E', '#D1E231',
+    '#F9BF3B', '#2F4F4F', '#4682B4', '#8A2BE2', '#EE82EE', '#FA8072'
+  ];
+  return colors[Math.floor(Math.random() * colors.length)];
+}
+
 
 async function handleCallSignaling(data) {
   const peerConnection = peerConnections.get(data.senderId) || await createPeerConnection(data.senderId);
