@@ -143,11 +143,12 @@ function connectWebSocket() {
 
   ws.onerror = (error) => {
     console.error('WebSocket error:', error);
-    alert('Error connecting to the server. Please try again.');
+    setTimeout(connectWebSocket, 5000); // Attempt to reconnect after 5 seconds
   };
 
   ws.onclose = () => {
     console.log('WebSocket connection closed');
+    setTimeout(connectWebSocket, 5000); // Attempt to reconnect after 5 seconds
   };
 }
 
@@ -159,20 +160,31 @@ function joinRoom(roomId) {
   ws.send(JSON.stringify({ type: 'join_room', roomId, userName }));
 }
 
+function getRandomColor() {
+  const colors = [
+    '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F67280', '#C06C84',
+    '#6A0572', '#FEBF10', '#16A085', '#F39C12', '#3498DB', '#9B59B6', '#1ABC9C',
+    '#E74C3C', '#2980B9', '#E67E22', '#2ECC71', '#8E44AD', '#D35400', '#7F8C8D',
+    '#27AE60', '#C0392B', '#BDC3C7', '#2C3E50', '#95A5A6', '#34495E', '#D1E231',
+    '#F9BF3B', '#2F4F4F', '#4682B4', '#8A2BE2', '#EE82EE', '#FA8072'
+  ];
+  return colors[Math.floor(Math.random() * colors.length)];
+}
+
 function updateRoomsList(rooms) {
   roomsList.innerHTML = '';
   if (rooms.length === 0) {
     roomsList.innerHTML = '<p>No rooms available. Create one!</p>';
   } else {
-    rooms.forEach((room, index) => {
+    rooms.forEach((room) => {
       const roomCard = document.createElement('div');
       roomCard.className = 'room-card';
-      roomCard.style.backgroundColor = getRandomColor(index);
+      roomCard.style.backgroundColor = getRandomColor();
       roomCard.innerHTML = `
-       <h3>${room.title}</h3>
-       <p>Host: ${room.hostName}</p>
-       <p>Participants: ${room.participants.length}</p>
-     `;
+        <h3>${room.title}</h3>
+        <p>Host: ${room.hostName}</p>
+        <p>Participants: ${room.participants.length}</p>
+      `;
       roomCard.addEventListener('click', () => {
         localStorage.setItem('currentRoomId', room.id);
         window.location.href = 'call.html';
@@ -180,15 +192,6 @@ function updateRoomsList(rooms) {
       roomsList.appendChild(roomCard);
     });
   }
-}
-
-function getRandomColor(index) {
-  const colors = [
-    '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F67280', '#C06C84',
-    '#6A0572', '#FEBF10', '#16A085', '#F39C12', '#3498DB', '#9B59B6', '#1ABC9C',
-    '#E74C3C', '#2980B9', '#E67E22', '#2ECC71', '#8E44AD', '#D35400', '#7F8C8D'
-  ];
-  return colors[index % colors.length];
 }
 
 function handleRoomJoined(data) {
@@ -223,7 +226,6 @@ function updateParticipantsList(participants) {
     avatar.className = 'participant-avatar';
     avatar.style.backgroundColor = getRandomColor();
 
-    // Extract the first two characters of the name and convert to uppercase
     avatar.textContent = participant.name.substring(0, 2).toUpperCase();
 
     const name = document.createElement('div');
@@ -236,19 +238,11 @@ function updateParticipantsList(participants) {
   });
 }
 
-function getRandomColor() {
-  const colors = [
-    '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F67280', '#C06C84',
-    '#6A0572', '#FEBF10', '#16A085', '#F39C12', '#3498DB', '#9B59B6', '#1ABC9C',
-    '#E74C3C', '#2980B9', '#E67E22', '#2ECC71', '#8E44AD', '#D35400', '#7F8C8D',
-    '#27AE60', '#C0392B', '#BDC3C7', '#2C3E50', '#95A5A6', '#34495E', '#D1E231',
-    '#F9BF3B', '#2F4F4F', '#4682B4', '#8A2BE2', '#EE82EE', '#FA8072'
-  ];
-  return colors[Math.floor(Math.random() * colors.length)];
-}
-
 async function handleCallSignaling(data) {
-  const peerConnection = peerConnections.get(data.senderId) || await createPeerConnection(data.senderId);
+  let peerConnection = peerConnections.get(data.senderId);
+  if (!peerConnection) {
+    peerConnection = await createPeerConnection(data.senderId);
+  }
 
   try {
     switch (data.type) {
@@ -271,6 +265,7 @@ async function handleCallSignaling(data) {
     }
   } catch (error) {
     console.error('Error handling call signaling:', error);
+    await recreatePeerConnection(data.senderId);
   }
 }
 
@@ -278,11 +273,31 @@ async function createPeerConnection(participantId) {
   const peerConnection = new RTCPeerConnection({
     iceServers: [
       { urls: "stun:stun.l.google.com:19302" },
+      { urls: "stun:stun1.l.google.com:19302" },
+      { urls: "stun:stun2.l.google.com:19302" },
+      { urls: "stun:stun3.l.google.com:19302" },
+      { urls: "stun:stun4.l.google.com:19302" },
+      { urls: "stun:stun.relay.metered.ca:80" },
       {
         urls: "turn:global.relay.metered.ca:80",
         username: "e71c4a9cf031d7330ef0b2de",
         credential: "PSt/7RpLC4ErNFGu"
       },
+      {
+        urls: "turn:global.relay.metered.ca:80?transport=tcp",
+        username: "e71c4a9cf031d7330ef0b2de",
+        credential: "PSt/7RpLC4ErNFGu"
+      },
+      {
+        urls: "turn:global.relay.metered.ca:443",
+        username: "e71c4a9cf031d7330ef0b2de",
+        credential: "PSt/7RpLC4ErNFGu"
+      },
+      {
+        urls: "turns:global.relay.metered.ca:443?transport=tcp",
+        username: "e71c4a9cf031d7330ef0b2de",
+        credential: "PSt/7RpLC4ErNFGu"
+      }
     ]
   });
 
@@ -302,6 +317,14 @@ async function createPeerConnection(participantId) {
     remoteAudio.play().catch(e => console.error('Error playing audio:', e));
   };
 
+  peerConnection.oniceconnectionstatechange = () => {
+    console.log(`ICE connection state change: ${peerConnection.iceConnectionState}`);
+    if (peerConnection.iceConnectionState === 'failed' || peerConnection.iceConnectionState === 'disconnected') {
+      console.log(`Attempting to recreate peer connection with ${participantId}`);
+      recreatePeerConnection(participantId);
+    }
+  };
+
   try {
     const stream = await getLocalStream();
     if (stream) {
@@ -315,9 +338,19 @@ async function createPeerConnection(participantId) {
   return peerConnection;
 }
 
+async function recreatePeerConnection(participantId) {
+  console.log(`Recreating peer connection with ${participantId}`);
+  if (peerConnections.has(participantId)) {
+    peerConnections.get(participantId).close();
+    peerConnections.delete(participantId);
+  }
+  await createPeerConnection(participantId);
+  initiateCall(participantId);
+}
+
 async function initiateCall(participantId) {
   try {
-    const peerConnection = await createPeerConnection(participantId);
+    const peerConnection = peerConnections.get(participantId) || await createPeerConnection(participantId);
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
     ws.send(JSON.stringify({
@@ -327,6 +360,7 @@ async function initiateCall(participantId) {
     }));
   } catch (error) {
     console.error('Error initiating call:', error);
+    await recreatePeerConnection(participantId);
   }
 }
 
