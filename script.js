@@ -25,6 +25,7 @@ const connectionAnimation = document.getElementById('connectionAnimation');
 const welcomeMessage = document.getElementById('welcomeMessage');
 const roomTitle = document.getElementById('roomTitle');
 const participantsList = document.getElementById('participantsList');
+const loadingAnimation = document.getElementById('loadingAnimation');
 
 // Check if we're on the index page
 if (userNameInput && enterButton) {
@@ -112,6 +113,7 @@ function connectWebSocket() {
   ws.onopen = () => {
     console.log('WebSocket connection established');
     if (window.location.pathname.includes('rooms.html')) {
+      showLoadingAnimation();
       ws.send(JSON.stringify({ type: 'get_rooms' }));
     } else if (window.location.pathname.includes('call.html')) {
       joinRoom(roomId);
@@ -155,6 +157,16 @@ function connectWebSocket() {
   };
 }
 
+function showLoadingAnimation() {
+  loadingAnimation.style.display = 'flex';
+  roomsList.style.display = 'none';
+}
+
+function hideLoadingAnimation() {
+  loadingAnimation.style.display = 'none';
+  roomsList.style.display = 'block';
+}
+
 function createRoom(title) {
   ws.send(JSON.stringify({ type: 'create_room', title, hostName: userName }));
 }
@@ -175,6 +187,7 @@ function getRandomColor() {
 }
 
 function updateRoomsList(rooms) {
+  hideLoadingAnimation();
   roomsList.innerHTML = '';
   if (rooms.length === 0) {
     roomsList.innerHTML = '<p>No rooms available. Create one!</p>';
@@ -184,10 +197,10 @@ function updateRoomsList(rooms) {
       roomCard.className = 'room-card';
       roomCard.style.backgroundColor = getRandomColor();
       roomCard.innerHTML = `
-       <h3>${room.title}</h3>
-       <p>Host: ${room.hostName}</p>
-       <p>Participants: ${room.participants.length}</p>
-     `;
+              <h3>${room.title}</h3>
+              <p>Host: ${room.hostName}</p>
+              <p>Participants: ${room.participants.length}</p>
+          `;
       roomCard.addEventListener('click', () => {
         localStorage.setItem('currentRoomId', room.id);
         window.location.href = 'call.html';
