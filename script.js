@@ -5,6 +5,9 @@ let peerConnections = new Map();
 let roomId = null;
 let isMuted = false;
 let userName = '';
+let audioAnalysers = new Map();
+let activeSpeakers = new Set();
+
 
 // DOM Elements
 const userNameInput = document.getElementById('userNameInput');
@@ -181,10 +184,10 @@ function updateRoomsList(rooms) {
       roomCard.className = 'room-card';
       roomCard.style.backgroundColor = getRandomColor();
       roomCard.innerHTML = `
-        <h3>${room.title}</h3>
-        <p>Host: ${room.hostName}</p>
-        <p>Participants: ${room.participants.length}</p>
-      `;
+       <h3>${room.title}</h3>
+       <p>Host: ${room.hostName}</p>
+       <p>Participants: ${room.participants.length}</p>
+     `;
       roomCard.addEventListener('click', () => {
         localStorage.setItem('currentRoomId', room.id);
         window.location.href = 'call.html';
@@ -198,9 +201,17 @@ function handleRoomJoined(data) {
   roomId = data.roomId;
   roomTitle.textContent = data.title;
   updateParticipantsList(data.participants);
+  initAudioContext();
   connectionAnimation.classList.add('hidden');
   callControls.classList.remove('hidden');
   updateMuteButton();
+
+  // Initiate calls to all existing participants
+  data.participants.forEach(participant => {
+    if (participant.id !== ws.id) {
+      initiateCall(participant.id);
+    }
+  });
 }
 
 function handleParticipantJoined(data) {
@@ -221,16 +232,20 @@ function updateParticipantsList(participants) {
   participants.forEach(participant => {
     const participantElement = document.createElement('div');
     participantElement.className = 'participant';
+    participantElement.dataset.participantId = participant.id;
+
+    const avatarColor = getRandomColor();
+    const glowColor = getRandomColor();
 
     const avatar = document.createElement('div');
     avatar.className = 'participant-avatar';
-    avatar.style.backgroundColor = getRandomColor();
-
+    avatar.style.backgroundColor = avatarColor;
     avatar.textContent = participant.name.substring(0, 2).toUpperCase();
 
     const name = document.createElement('div');
     name.className = 'participant-name';
     name.textContent = participant.name;
+    name.dataset.glowColor = glowColor; // Assign a random glow color
 
     participantElement.appendChild(avatar);
     participantElement.appendChild(name);
@@ -260,8 +275,23 @@ async function handleCallSignaling(data) {
         await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
         break;
       case 'ice_candidate':
-        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+        if (peerConnection.remoteDescription) {
+          await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+        } else {
+          console.log('Queuing ICE candidate');
+          peerConnection.iceCandidates = peerConnection.iceCandidates || [];
+          peerConnection.iceCandidates.push(data.candidate);
+        }
         break;
+    }
+
+    // Add queued ICE candidates if any
+    if (peerConnection.remoteDescription && peerConnection.iceCandidates) {
+      console.log('Adding queued ICE candidates');
+      for (const candidate of peerConnection.iceCandidates) {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      }
+      delete peerConnection.iceCandidates;
     }
   } catch (error) {
     console.error('Error handling call signaling:', error);
@@ -314,6 +344,20 @@ async function createPeerConnection(participantId) {
   peerConnection.ontrack = (event) => {
     const remoteAudio = new Audio();
     remoteAudio.srcObject = event.streams[0];
+
+    const source = audioContext.createMediaStreamSource(event.streams[0]);
+    const gainNode = audioContext.createGain();
+    source.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+
+    // Create audio analyser for this peer
+    const analyser = audioContext.createAnalyser();
+    source.connect(analyser);
+    audioAnalysers.set(participantId, analyser);
+
+    // Start analyzing audio levels
+    analyzeAudioLevels(participantId, analyser);
+
     remoteAudio.play().catch(e => console.error('Error playing audio:', e));
   };
 
@@ -389,3 +433,180 @@ function updateMuteButton() {
 
 // Initialize WebSocket connection when the script loads
 connectWebSocket();
+
+// Add this function to periodically check and refresh connections
+function checkConnections() {
+  peerConnections.forEach((peerConnection, participantId) => {
+    if (peerConnection.iceConnectionState === 'disconnected' ||
+      peerConnection.iceConnectionState === 'failed' ||
+      peerConnection.iceConnectionState === 'closed') {
+      console.log(`Connection with ${participantId} is in ${peerConnection.iceConnectionState} state. Attempting to reconnect.`);
+      recreatePeerConnection(participantId);
+    }
+  });
+}
+
+// Call checkConnections every 30 seconds
+setInterval(checkConnections, 30000);
+
+// Add this function to handle potential audio context issues
+function unlockAudioContext(audioContext) {
+  if (audioContext.state === 'suspended') {
+    const unlock = function () {
+      audioContext.resume().then(function () {
+        document.body.removeEventListener('touchstart', unlock);
+        document.body.removeEventListener('touchend', unlock);
+        document.body.removeEventListener('click', unlock);
+      });
+    };
+
+    document.body.addEventListener('touchstart', unlock, false);
+    document.body.addEventListener('touchend', unlock, false);
+    document.body.addEventListener('click', unlock, false);
+  }
+}
+
+// Create an AudioContext and unlock it
+const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+unlockAudioContext(audioContext);
+
+// Modify the ontrack function in createPeerConnection to use the AudioContext
+peerConnection.ontrack = (event) => {
+  const remoteAudio = new Audio();
+  remoteAudio.srcObject = event.streams[0];
+
+  const source = audioContext.createMediaStreamSource(event.streams[0]);
+  const gainNode = audioContext.createGain();
+  source.connect(gainNode);
+  gainNode.connect(audioContext.destination);
+
+  remoteAudio.play().catch(e => console.error('Error playing audio:', e));
+};
+
+// Add a function to handle potential network changes
+function handleNetworkChange() {
+  if (navigator.onLine) {
+    console.log('Network is online. Checking connections.');
+    checkConnections();
+  } else {
+    console.log('Network is offline. Will check connections when back online.');
+  }
+}
+
+// Listen for online/offline events
+window.addEventListener('online', handleNetworkChange);
+window.addEventListener('offline', handleNetworkChange);
+
+// Add a function to restart ICE candidates if needed
+async function restartIce(peerConnection) {
+  try {
+    const offer = await peerConnection.createOffer({ iceRestart: true });
+    await peerConnection.setLocalDescription(offer);
+    return offer;
+  } catch (error) {
+    console.error('Error restarting ICE:', error);
+  }
+}
+
+// Modify recreatePeerConnection to use ICE restart when possible
+async function recreatePeerConnection(participantId) {
+  console.log(`Attempting to reconnect with ${participantId}`);
+  const existingPeerConnection = peerConnections.get(participantId);
+
+  if (existingPeerConnection) {
+    try {
+      const offer = await restartIce(existingPeerConnection);
+      ws.send(JSON.stringify({
+        type: 'offer',
+        offer: offer,
+        targetId: participantId
+      }));
+      return;
+    } catch (error) {
+      console.error('Failed to restart ICE. Creating new peer connection.');
+    }
+  }
+
+  // If ICE restart fails or there's no existing connection, create a new one
+  if (peerConnections.has(participantId)) {
+    peerConnections.get(participantId).close();
+    peerConnections.delete(participantId);
+  }
+  await createPeerConnection(participantId);
+  initiateCall(participantId);
+}
+
+// Add a function to periodically check audio levels
+function checkAudioLevels() {
+  if (localStream) {
+    const audioTrack = localStream.getAudioTracks()[0];
+    if (audioTrack) {
+      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const analyser = audioContext.createAnalyser();
+      const microphone = audioContext.createMediaStreamSource(localStream);
+      const javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
+
+      analyser.smoothingTimeConstant = 0.8;
+      analyser.fftSize = 1024;
+
+      microphone.connect(analyser);
+      analyser.connect(javascriptNode);
+      javascriptNode.connect(audioContext.destination);
+
+      javascriptNode.onaudioprocess = function () {
+        const array = new Uint8Array(analyser.frequencyBinCount);
+        analyser.getByteFrequencyData(array);
+        let values = 0;
+
+        const length = array.length;
+        for (let i = 0; i < length; i++) {
+          values += (array[i]);
+        }
+
+        const average = values / length;
+        console.log('Audio level:', average);
+
+        // You can use this average value to visualize audio levels or detect silence
+      }
+    }
+  }
+}
+
+
+function analyzeAudioLevels(participantId, analyser) {
+  const bufferLength = analyser.frequencyBinCount;
+  const dataArray = new Uint8Array(bufferLength);
+
+  function checkLevel() {
+    analyser.getByteFrequencyData(dataArray);
+    const average = dataArray.reduce((a, b) => a + b) / bufferLength;
+
+    if (average > 10) { // Adjust this threshold as needed
+      activeSpeakers.add(participantId);
+    } else {
+      activeSpeakers.delete(participantId);
+    }
+
+    updateActiveSpeakers();
+    requestAnimationFrame(checkLevel);
+  }
+
+  checkLevel();
+}
+
+function updateActiveSpeakers() {
+  document.querySelectorAll('.participant').forEach(participant => {
+    const participantId = participant.dataset.participantId;
+    const nameElement = participant.querySelector('.participant-name');
+    if (activeSpeakers.has(participantId)) {
+      participant.classList.add('active-speaker');
+      nameElement.style.setProperty('--glow-color', nameElement.dataset.glowColor);
+    } else {
+      participant.classList.remove('active-speaker');
+      nameElement.style.removeProperty('--glow-color');
+    }
+  });
+}
+
+// Call checkAudioLevels every 5 seconds
+setInterval(checkAudioLevels, 5000);
