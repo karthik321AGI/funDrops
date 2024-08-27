@@ -277,17 +277,54 @@ button i {
 
 
 
-
-.active-speaker {
-  animation: glow 0.5s ease-in-out infinite alternate;
+.participant-name {
+  font-size: 0.9rem;
+  text-align: center;
+  color: var(--text-color);
+  transition: all 0.3s ease;
 }
 
-@keyframes glow {
-  from {
-    box-shadow: 0 0 5px -5px #ffff00;
+.participant-name.active-speaker {
+  --glow-color: #00ffff;
+  /* Bright cyan color */
+  color: #ffffff;
+  font-weight: bold;
+  animation: name-glow 1.5s ease-in-out infinite alternate;
+  transform: scale(1.05);
+}
+
+@keyframes name-glow {
+  0% {
+    text-shadow: 0 0 5px var(--glow-color),
+      0 0 10px var(--glow-color),
+      0 0 20px var(--glow-color),
+      0 0 40px var(--glow-color);
   }
 
-  to {
-    box-shadow: 0 0 5px 5px #ffff00;
+  100% {
+    text-shadow: 0 0 10px var(--glow-color),
+      0 0 20px var(--glow-color),
+      0 0 40px var(--glow-color),
+      0 0 80px var(--glow-color),
+      0 0 120px var(--glow-color);
+  }
+}
+
+/* Add a subtle pulse effect to the avatar when speaking */
+.participant-avatar {
+  transition: all 0.3s ease;
+}
+
+.active-speaker .participant-avatar {
+  animation: avatar-pulse 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes avatar-pulse {
+  0% {
+    transform: scale(1);
+  }
+
+  100% {
+    transform: scale(1.05);
   }
 }

@@ -153,10 +153,15 @@ function broadcastActiveSpeaker(participantId, isActive) {
 function updateParticipantStyle(participantId, isActive) {
   const participantElement = document.querySelector(`[data-participant-id="${participantId}"]`);
   if (participantElement) {
-    if (isActive) {
-      participantElement.classList.add('active-speaker');
-    } else {
-      participantElement.classList.remove('active-speaker');
+    const nameElement = participantElement.querySelector('.participant-name');
+    if (nameElement) {
+      if (isActive) {
+        nameElement.classList.add('active-speaker');
+        participantElement.classList.add('active-speaker');
+      } else {
+        nameElement.classList.remove('active-speaker');
+        participantElement.classList.remove('active-speaker');
+      }
     }
   }
 }
