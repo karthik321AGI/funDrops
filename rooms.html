@@ -1,36 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FUN DROP - Rooms</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link rel="stylesheet" href="style.css">
+   <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <title>FUN DROP - Rooms</title>
+   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="container">
-        <div class="app-header">
-            <h1><i class="fas fa-tint"></i> FUN DROPS</h1>
-            <p id="welcomeMessage"></p>
-        </div>
-        <div class="main-content">
-            <div id="loadingAnimation" class="loading-animation">
-                <div class="drop"></div>
-                <div class="drop"></div>
-                <div class="drop"></div>
-            </div>
-            <div id="roomsList"></div>
-            <button id="createRoomButton"><i class="fas fa-plus-circle"></i> Create Room</button>
-        </div>
-    </div>
-    <div id="createRoomModal" class="modal">
-        <div class="modal-content">
-            <h2>Create a New Room</h2>
-            <input type="text" id="roomTitleInput" placeholder="Enter room title">
-            <button id="confirmCreateRoom">Create</button>
-            <button id="cancelCreateRoom">Cancel</button>
-        </div>
-    </div>
-    <script src="script.js"></script>
+   <div class="container">
+       <div class="app-header">
+           <h1><i class="fas fa-tint"></i> FUN DROPS</h1>
+           <p id="welcomeMessage"></p>
+       </div>
+       <div class="main-content">
+           <div id="roomsList"></div>
+           <button id="createRoomButton"><i class="fas fa-plus-circle"></i> Create Room</button>
+       </div>
+   </div>
+   <div id="createRoomModal" class="modal">
+       <div class="modal-content">
+           <h2>Create a New Room</h2>
+           <input type="text" id="roomTitleInput" placeholder="Enter room title">
+           <button id="confirmCreateRoom">Create</button>
+           <button id="cancelCreateRoom">Cancel</button>
+       </div>
+   </div>
+   <script src="script.js"></script>
 </body>
 </html>

@@ -8,9 +8,6 @@
   --danger-color: #e74c3c;
   --success-color: #2ecc71;
   --muted-color: #95a5a6;
-
-
-
 }
 
 body {
@@ -117,12 +114,6 @@ button i {
   border-radius: 5px;
   font-size: 1rem;
   box-sizing: border-box;
-}
-
-#roomTitle {
-  color: white;
-  font-size: 1.5rem;
-  margin-bottom: 20px;
 }
 
 #welcomeMessage {
@@ -284,55 +275,19 @@ button i {
   }
 }
 
-.active-speaker .participant-name {
-  animation: glow 1s ease-in-out infinite alternate;
+
+
+
+.active-speaker {
+  animation: glow 0.5s ease-in-out infinite alternate;
 }
 
 @keyframes glow {
-  0% {
-    text-shadow: 0 0 5px #fff, 0 0 10px #fff, 0 0 15px #fff, 0 0 20px var(--glow-color), 0 0 35px var(--glow-color), 0 0 40px var(--glow-color), 0 0 50px var(--glow-color), 0 0 75px var(--glow-color);
+  from {
+    box-shadow: 0 0 5px -5px #ffff00;
   }
 
-  100% {
-    text-shadow: 0 0 10px #fff, 0 0 20px #fff, 0 0 30px #fff, 0 0 40px var(--glow-color), 0 0 70px var(--glow-color), 0 0 80px var(--glow-color), 0 0 100px var(--glow-color), 0 0 150px var(--glow-color);
+  to {
+    box-shadow: 0 0 5px 5px #ffff00;
   }
 }
-
-
-/* ... (existing styles) ... */
-
-.loading-animation {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  height: 200px;
-}
-
-.drop {
-  width: 20px;
-  height: 20px;
-  background-color: #fcd0d0;
-  border-radius: 50%;
-  margin: 0 10px;
-  animation: bounce 0.5s ease-in-out infinite alternate;
-}
-
-.drop:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.drop:nth-child(3) {
-  animation-delay: 0.4s;
-}
-
-@keyframes bounce {
-  0% {
-    transform: translateY(0);
-  }
-
-  100% {
-    transform: translateY(-30px);
-  }
-}
-
-/* ... (rest of the existing styles) ... */

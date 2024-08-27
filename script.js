@@ -5,8 +5,11 @@ let peerConnections = new Map();
 let roomId = null;
 let isMuted = false;
 let userName = '';
-let audioAnalysers = new Map();
+let audioContext;
+let audioAnalyser;
+let audioSources = new Map();
 let activeSpeakers = new Set();
+let audioAnalysers = new Map();
 
 
 // DOM Elements
@@ -25,7 +28,6 @@ const connectionAnimation = document.getElementById('connectionAnimation');
 const welcomeMessage = document.getElementById('welcomeMessage');
 const roomTitle = document.getElementById('roomTitle');
 const participantsList = document.getElementById('participantsList');
-const loadingAnimation = document.getElementById('loadingAnimation');
 
 // Check if we're on the index page
 if (userNameInput && enterButton) {
@@ -90,8 +92,17 @@ async function getLocalStream() {
         audio: true,
         video: false
       });
-      localStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
       console.log('Local stream obtained');
+
+      // Initialize audio context and analyser for local stream
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      const analyser = audioContext.createAnalyser();
+      const source = audioContext.createMediaStreamSource(localStream);
+      source.connect(analyser);
+      audioAnalysers.set('local', analyser);
+
+      // Start detecting active speakers
+      detectActiveSpeakers();
     } catch (error) {
       console.error('Error accessing microphone:', error);
       alert('Error accessing microphone. Please ensure you have given permission.');
@@ -100,6 +111,56 @@ async function getLocalStream() {
   }
   return localStream;
 }
+
+function detectActiveSpeakers() {
+  const bufferLength = 1024;
+  const dataArray = new Uint8Array(bufferLength);
+
+  function checkAudioLevel() {
+    audioAnalysers.forEach((analyser, participantId) => {
+      analyser.getByteFrequencyData(dataArray);
+      const average = dataArray.reduce((acc, value) => acc + value, 0) / bufferLength;
+
+      if (average > 5) { // Adjust this threshold as needed
+        if (!activeSpeakers.has(participantId)) {
+          activeSpeakers.add(participantId);
+          updateParticipantStyle(participantId, true);
+          broadcastActiveSpeaker(participantId, true);
+        }
+      } else {
+        if (activeSpeakers.has(participantId)) {
+          activeSpeakers.delete(participantId);
+          updateParticipantStyle(participantId, false);
+          broadcastActiveSpeaker(participantId, false);
+        }
+      }
+    });
+
+    requestAnimationFrame(checkAudioLevel);
+  }
+
+  checkAudioLevel();
+}
+
+function broadcastActiveSpeaker(participantId, isActive) {
+  ws.send(JSON.stringify({
+    type: 'active_speaker',
+    participantId: participantId,
+    isActive: isActive
+  }));
+}
+
+function updateParticipantStyle(participantId, isActive) {
+  const participantElement = document.querySelector(`[data-participant-id="${participantId}"]`);
+  if (participantElement) {
+    if (isActive) {
+      participantElement.classList.add('active-speaker');
+    } else {
+      participantElement.classList.remove('active-speaker');
+    }
+  }
+}
+
 
 function connectWebSocket() {
   if (ws && ws.readyState === WebSocket.OPEN) {
@@ -113,7 +174,6 @@ function connectWebSocket() {
   ws.onopen = () => {
     console.log('WebSocket connection established');
     if (window.location.pathname.includes('rooms.html')) {
-      showLoadingAnimation();
       ws.send(JSON.stringify({ type: 'get_rooms' }));
     } else if (window.location.pathname.includes('call.html')) {
       joinRoom(roomId);
@@ -125,6 +185,10 @@ function connectWebSocket() {
     console.log('Received message:', data);
 
     switch (data.type) {
+
+      case 'active_speaker':
+        handleActiveSpeaker(data);
+        break;
       case 'rooms_list':
         updateRoomsList(data.rooms);
         break;
@@ -148,23 +212,12 @@ function connectWebSocket() {
 
   ws.onerror = (error) => {
     console.error('WebSocket error:', error);
-    setTimeout(connectWebSocket, 5000); // Attempt to reconnect after 5 seconds
+    alert('Error connecting to the server. Please try again.');
   };
 
   ws.onclose = () => {
     console.log('WebSocket connection closed');
-    setTimeout(connectWebSocket, 5000); // Attempt to reconnect after 5 seconds
   };
-}
-
-function showLoadingAnimation() {
-  loadingAnimation.style.display = 'flex';
-  roomsList.style.display = 'none';
-}
-
-function hideLoadingAnimation() {
-  loadingAnimation.style.display = 'none';
-  roomsList.style.display = 'block';
 }
 
 function createRoom(title) {
@@ -175,32 +228,20 @@ function joinRoom(roomId) {
   ws.send(JSON.stringify({ type: 'join_room', roomId, userName }));
 }
 
-function getRandomColor() {
-  const colors = [
-    '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F67280', '#C06C84',
-    '#6A0572', '#FEBF10', '#16A085', '#F39C12', '#3498DB', '#9B59B6', '#1ABC9C',
-    '#E74C3C', '#2980B9', '#E67E22', '#2ECC71', '#8E44AD', '#D35400', '#7F8C8D',
-    '#27AE60', '#C0392B', '#BDC3C7', '#2C3E50', '#95A5A6', '#34495E', '#D1E231',
-    '#F9BF3B', '#2F4F4F', '#4682B4', '#8A2BE2', '#EE82EE', '#FA8072'
-  ];
-  return colors[Math.floor(Math.random() * colors.length)];
-}
-
 function updateRoomsList(rooms) {
-  hideLoadingAnimation();
   roomsList.innerHTML = '';
   if (rooms.length === 0) {
     roomsList.innerHTML = '<p>No rooms available. Create one!</p>';
   } else {
-    rooms.forEach((room) => {
+    rooms.forEach((room, index) => {
       const roomCard = document.createElement('div');
       roomCard.className = 'room-card';
-      roomCard.style.backgroundColor = getRandomColor();
+      roomCard.style.backgroundColor = getRandomColor(index);
       roomCard.innerHTML = `
-              <h3>${room.title}</h3>
-              <p>Host: ${room.hostName}</p>
-              <p>Participants: ${room.participants.length}</p>
-          `;
+        <h3>${room.title}</h3>
+        <p>Host: ${room.hostName}</p>
+        <p>Participants: ${room.participants.length}</p>
+      `;
       roomCard.addEventListener('click', () => {
         localStorage.setItem('currentRoomId', room.id);
         window.location.href = 'call.html';
@@ -210,21 +251,21 @@ function updateRoomsList(rooms) {
   }
 }
 
+function getRandomColor(index) {
+  const colors = [
+    '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F67280', '#C06C84',
+    '#6A0572', '#FEBF10', '#16A085', '#F39C12', '#3498DB', '#9B59B6', '#1ABC9C',
+    '#E74C3C', '#2980B9', '#E67E22', '#2ECC71', '#8E44AD', '#D35400', '#7F8C8D'
+  ];
+  return colors[index % colors.length];
+}
+
 function handleRoomJoined(data) {
   roomId = data.roomId;
   roomTitle.textContent = data.title;
   updateParticipantsList(data.participants);
-  initAudioContext();
   connectionAnimation.classList.add('hidden');
   callControls.classList.remove('hidden');
-  updateMuteButton();
-
-  // Initiate calls to all existing participants
-  data.participants.forEach(participant => {
-    if (participant.id !== ws.id) {
-      initiateCall(participant.id);
-    }
-  });
 }
 
 function handleParticipantJoined(data) {
@@ -238,6 +279,15 @@ function handleParticipantLeft(data) {
     peerConnections.get(data.participantId).close();
     peerConnections.delete(data.participantId);
   }
+
+  // Remove this participant from the audioAnalysers map
+  if (audioAnalysers.has(data.participantId)) {
+    audioAnalysers.delete(data.participantId);
+  }
+
+  // Remove from active speakers if present
+  activeSpeakers.delete(data.participantId);
+  updateParticipantStyle(data.participantId, false);
 }
 
 function updateParticipantsList(participants) {
@@ -245,20 +295,17 @@ function updateParticipantsList(participants) {
   participants.forEach(participant => {
     const participantElement = document.createElement('div');
     participantElement.className = 'participant';
-    participantElement.dataset.participantId = participant.id;
-
-    const avatarColor = getRandomColor();
-    const glowColor = getRandomColor();
+    participantElement.setAttribute('data-participant-id', participant.id);
 
     const avatar = document.createElement('div');
     avatar.className = 'participant-avatar';
-    avatar.style.backgroundColor = avatarColor;
+    avatar.style.backgroundColor = getRandomColor();
+
     avatar.textContent = participant.name.substring(0, 2).toUpperCase();
 
     const name = document.createElement('div');
     name.className = 'participant-name';
-    name.textContent = participant.name;
-    name.dataset.glowColor = glowColor; // Assign a random glow color
+    name.textContent = participant.name + (participant.id === ws.id ? ' (You)' : '');
 
     participantElement.appendChild(avatar);
     participantElement.appendChild(name);
@@ -266,11 +313,21 @@ function updateParticipantsList(participants) {
   });
 }
 
+
+function getRandomColor() {
+  const colors = [
+    '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F67280', '#C06C84',
+    '#6A0572', '#FEBF10', '#16A085', '#F39C12', '#3498DB', '#9B59B6', '#1ABC9C',
+    '#E74C3C', '#2980B9', '#E67E22', '#2ECC71', '#8E44AD', '#D35400', '#7F8C8D',
+    '#27AE60', '#C0392B', '#BDC3C7', '#2C3E50', '#95A5A6', '#34495E', '#D1E231',
+    '#F9BF3B', '#2F4F4F', '#4682B4', '#8A2BE2', '#EE82EE', '#FA8072'
+  ];
+  return colors[Math.floor(Math.random() * colors.length)];
+}
+
+
 async function handleCallSignaling(data) {
-  let peerConnection = peerConnections.get(data.senderId);
-  if (!peerConnection) {
-    peerConnection = await createPeerConnection(data.senderId);
-  }
+  const peerConnection = peerConnections.get(data.senderId) || await createPeerConnection(data.senderId);
 
   try {
     switch (data.type) {
@@ -288,27 +345,11 @@ async function handleCallSignaling(data) {
         await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
         break;
       case 'ice_candidate':
-        if (peerConnection.remoteDescription) {
-          await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
-        } else {
-          console.log('Queuing ICE candidate');
-          peerConnection.iceCandidates = peerConnection.iceCandidates || [];
-          peerConnection.iceCandidates.push(data.candidate);
-        }
+        await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
         break;
-    }
-
-    // Add queued ICE candidates if any
-    if (peerConnection.remoteDescription && peerConnection.iceCandidates) {
-      console.log('Adding queued ICE candidates');
-      for (const candidate of peerConnection.iceCandidates) {
-        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-      }
-      delete peerConnection.iceCandidates;
     }
   } catch (error) {
     console.error('Error handling call signaling:', error);
-    await recreatePeerConnection(data.senderId);
   }
 }
 
@@ -316,31 +357,11 @@ async function createPeerConnection(participantId) {
   const peerConnection = new RTCPeerConnection({
     iceServers: [
       { urls: "stun:stun.l.google.com:19302" },
-      { urls: "stun:stun1.l.google.com:19302" },
-      { urls: "stun:stun2.l.google.com:19302" },
-      { urls: "stun:stun3.l.google.com:19302" },
-      { urls: "stun:stun4.l.google.com:19302" },
-      { urls: "stun:stun.relay.metered.ca:80" },
       {
         urls: "turn:global.relay.metered.ca:80",
         username: "e71c4a9cf031d7330ef0b2de",
         credential: "PSt/7RpLC4ErNFGu"
       },
-      {
-        urls: "turn:global.relay.metered.ca:80?transport=tcp",
-        username: "e71c4a9cf031d7330ef0b2de",
-        credential: "PSt/7RpLC4ErNFGu"
-      },
-      {
-        urls: "turn:global.relay.metered.ca:443",
-        username: "e71c4a9cf031d7330ef0b2de",
-        credential: "PSt/7RpLC4ErNFGu"
-      },
-      {
-        urls: "turns:global.relay.metered.ca:443?transport=tcp",
-        username: "e71c4a9cf031d7330ef0b2de",
-        credential: "PSt/7RpLC4ErNFGu"
-      }
     ]
   });
 
@@ -357,29 +378,13 @@ async function createPeerConnection(participantId) {
   peerConnection.ontrack = (event) => {
     const remoteAudio = new Audio();
     remoteAudio.srcObject = event.streams[0];
+    remoteAudio.play().catch(e => console.error('Error playing audio:', e));
 
-    const source = audioContext.createMediaStreamSource(event.streams[0]);
-    const gainNode = audioContext.createGain();
-    source.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    // Create audio analyser for this peer
+    // Set up audio analysis for the remote stream
     const analyser = audioContext.createAnalyser();
+    const source = audioContext.createMediaStreamSource(event.streams[0]);
     source.connect(analyser);
     audioAnalysers.set(participantId, analyser);
-
-    // Start analyzing audio levels
-    analyzeAudioLevels(participantId, analyser);
-
-    remoteAudio.play().catch(e => console.error('Error playing audio:', e));
-  };
-
-  peerConnection.oniceconnectionstatechange = () => {
-    console.log(`ICE connection state change: ${peerConnection.iceConnectionState}`);
-    if (peerConnection.iceConnectionState === 'failed' || peerConnection.iceConnectionState === 'disconnected') {
-      console.log(`Attempting to recreate peer connection with ${participantId}`);
-      recreatePeerConnection(participantId);
-    }
   };
 
   try {
@@ -395,19 +400,14 @@ async function createPeerConnection(participantId) {
   return peerConnection;
 }
 
-async function recreatePeerConnection(participantId) {
-  console.log(`Recreating peer connection with ${participantId}`);
-  if (peerConnections.has(participantId)) {
-    peerConnections.get(participantId).close();
-    peerConnections.delete(participantId);
-  }
-  await createPeerConnection(participantId);
-  initiateCall(participantId);
+
+function handleActiveSpeaker(data) {
+  updateParticipantStyle(data.participantId, data.isActive);
 }
 
 async function initiateCall(participantId) {
   try {
-    const peerConnection = peerConnections.get(participantId) || await createPeerConnection(participantId);
+    const peerConnection = await createPeerConnection(participantId);
     const offer = await peerConnection.createOffer();
     await peerConnection.setLocalDescription(offer);
     ws.send(JSON.stringify({
@@ -417,7 +417,6 @@ async function initiateCall(participantId) {
     }));
   } catch (error) {
     console.error('Error initiating call:', error);
-    await recreatePeerConnection(participantId);
   }
 }
 
@@ -431,195 +430,10 @@ function leaveRoom() {
 
 function toggleMute() {
   isMuted = !isMuted;
-  if (localStream) {
-    localStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
-  }
-  updateMuteButton();
-}
-
-function updateMuteButton() {
-  if (muteButton) {
-    muteButton.innerHTML = isMuted ? '<i class="fas fa-microphone-slash"></i> Unmute' : '<i class="fas fa-microphone"></i> Mute';
-    muteButton.classList.toggle('muted', isMuted);
-  }
+  localStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
+  muteButton.innerHTML = isMuted ? '<i class="fas fa-microphone-slash"></i> Unmute' : '<i class="fas fa-microphone"></i> Mute';
+  muteButton.classList.toggle('muted', isMuted);
 }
 
 // Initialize WebSocket connection when the script loads
 connectWebSocket();
-
-// Add this function to periodically check and refresh connections
-function checkConnections() {
-  peerConnections.forEach((peerConnection, participantId) => {
-    if (peerConnection.iceConnectionState === 'disconnected' ||
-      peerConnection.iceConnectionState === 'failed' ||
-      peerConnection.iceConnectionState === 'closed') {
-      console.log(`Connection with ${participantId} is in ${peerConnection.iceConnectionState} state. Attempting to reconnect.`);
-      recreatePeerConnection(participantId);
-    }
-  });
-}
-
-// Call checkConnections every 30 seconds
-setInterval(checkConnections, 30000);
-
-// Add this function to handle potential audio context issues
-function unlockAudioContext(audioContext) {
-  if (audioContext.state === 'suspended') {
-    const unlock = function () {
-      audioContext.resume().then(function () {
-        document.body.removeEventListener('touchstart', unlock);
-        document.body.removeEventListener('touchend', unlock);
-        document.body.removeEventListener('click', unlock);
-      });
-    };
-
-    document.body.addEventListener('touchstart', unlock, false);
-    document.body.addEventListener('touchend', unlock, false);
-    document.body.addEventListener('click', unlock, false);
-  }
-}
-
-// Create an AudioContext and unlock it
-const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-unlockAudioContext(audioContext);
-
-// Modify the ontrack function in createPeerConnection to use the AudioContext
-peerConnection.ontrack = (event) => {
-  const remoteAudio = new Audio();
-  remoteAudio.srcObject = event.streams[0];
-
-  const source = audioContext.createMediaStreamSource(event.streams[0]);
-  const gainNode = audioContext.createGain();
-  source.connect(gainNode);
-  gainNode.connect(audioContext.destination);
-
-  remoteAudio.play().catch(e => console.error('Error playing audio:', e));
-};
-
-// Add a function to handle potential network changes
-function handleNetworkChange() {
-  if (navigator.onLine) {
-    console.log('Network is online. Checking connections.');
-    checkConnections();
-  } else {
-    console.log('Network is offline. Will check connections when back online.');
-  }
-}
-
-// Listen for online/offline events
-window.addEventListener('online', handleNetworkChange);
-window.addEventListener('offline', handleNetworkChange);
-
-// Add a function to restart ICE candidates if needed
-async function restartIce(peerConnection) {
-  try {
-    const offer = await peerConnection.createOffer({ iceRestart: true });
-    await peerConnection.setLocalDescription(offer);
-    return offer;
-  } catch (error) {
-    console.error('Error restarting ICE:', error);
-  }
-}
-
-// Modify recreatePeerConnection to use ICE restart when possible
-async function recreatePeerConnection(participantId) {
-  console.log(`Attempting to reconnect with ${participantId}`);
-  const existingPeerConnection = peerConnections.get(participantId);
-
-  if (existingPeerConnection) {
-    try {
-      const offer = await restartIce(existingPeerConnection);
-      ws.send(JSON.stringify({
-        type: 'offer',
-        offer: offer,
-        targetId: participantId
-      }));
-      return;
-    } catch (error) {
-      console.error('Failed to restart ICE. Creating new peer connection.');
-    }
-  }
-
-  // If ICE restart fails or there's no existing connection, create a new one
-  if (peerConnections.has(participantId)) {
-    peerConnections.get(participantId).close();
-    peerConnections.delete(participantId);
-  }
-  await createPeerConnection(participantId);
-  initiateCall(participantId);
-}
-
-// Add a function to periodically check audio levels
-function checkAudioLevels() {
-  if (localStream) {
-    const audioTrack = localStream.getAudioTracks()[0];
-    if (audioTrack) {
-      const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-      const analyser = audioContext.createAnalyser();
-      const microphone = audioContext.createMediaStreamSource(localStream);
-      const javascriptNode = audioContext.createScriptProcessor(2048, 1, 1);
-
-      analyser.smoothingTimeConstant = 0.8;
-      analyser.fftSize = 1024;
-
-      microphone.connect(analyser);
-      analyser.connect(javascriptNode);
-      javascriptNode.connect(audioContext.destination);
-
-      javascriptNode.onaudioprocess = function () {
-        const array = new Uint8Array(analyser.frequencyBinCount);
-        analyser.getByteFrequencyData(array);
-        let values = 0;
-
-        const length = array.length;
-        for (let i = 0; i < length; i++) {
-          values += (array[i]);
-        }
-
-        const average = values / length;
-        console.log('Audio level:', average);
-
-        // You can use this average value to visualize audio levels or detect silence
-      }
-    }
-  }
-}
-
-
-function analyzeAudioLevels(participantId, analyser) {
-  const bufferLength = analyser.frequencyBinCount;
-  const dataArray = new Uint8Array(bufferLength);
-
-  function checkLevel() {
-    analyser.getByteFrequencyData(dataArray);
-    const average = dataArray.reduce((a, b) => a + b) / bufferLength;
-
-    if (average > 10) { // Adjust this threshold as needed
-      activeSpeakers.add(participantId);
-    } else {
-      activeSpeakers.delete(participantId);
-    }
-
-    updateActiveSpeakers();
-    requestAnimationFrame(checkLevel);
-  }
-
-  checkLevel();
-}
-
-function updateActiveSpeakers() {
-  document.querySelectorAll('.participant').forEach(participant => {
-    const participantId = participant.dataset.participantId;
-    const nameElement = participant.querySelector('.participant-name');
-    if (activeSpeakers.has(participantId)) {
-      participant.classList.add('active-speaker');
-      nameElement.style.setProperty('--glow-color', nameElement.dataset.glowColor);
-    } else {
-      participant.classList.remove('active-speaker');
-      nameElement.style.removeProperty('--glow-color');
-    }
-  });
-}
-
-// Call checkAudioLevels every 5 seconds
-setInterval(checkAudioLevels, 5000);
