@@ -490,3 +490,66 @@ function displayEmojiReaction(participantId, emoji) {
 
 // Initialize WebSocket connection when the script loads
 connectWebSocket();
+
+
+// DOM Elements
+const emojiButton = document.getElementById('emojiButton');
+const chatButton = document.getElementById('chatButton');
+const emojiList = document.getElementById('emojiList');
+const chatPanel = document.getElementById('chatPanel');
+const closeChatButton = document.getElementById('closeChatButton');
+const messageInput = document.getElementById('messageInput');
+
+// Event Listeners
+emojiButton.addEventListener('click', toggleEmojiList);
+chatButton.addEventListener('click', toggleChatPanel);
+closeChatButton.addEventListener('click', toggleChatPanel);
+
+function toggleEmojiList() {
+  emojiList.classList.toggle('hidden');
+}
+
+function toggleChatPanel() {
+  chatPanel.classList.toggle('open');
+}
+
+function sendEmojiReaction(emoji) {
+  ws.send(JSON.stringify({
+    type: 'emoji_reaction',
+    emoji: emoji
+  }));
+  emojiList.classList.add('hidden');
+}
+
+function sendChatMessage() {
+  const message = messageInput.value.trim();
+  if (message) {
+    ws.send(JSON.stringify({
+      type: 'chat_message',
+      message: message
+    }));
+    messageInput.value = '';
+  }
+}
+
+function displayChatMessage(participantName, message) {
+  const chatMessagesElement = document.getElementById('chatMessages');
+  const messageElement = document.createElement('div');
+  messageElement.className = 'chat-message';
+  messageElement.innerHTML = `<strong>${participantName}:</strong> ${message}`;
+  chatMessagesElement.appendChild(messageElement);
+  chatMessagesElement.scrollTop = chatMessagesElement.scrollHeight;
+}
+
+function displayEmojiReaction(participantId, emoji) {
+  const participantElement = document.querySelector(`[data-participant-id="${participantId}"]`);
+  if (participantElement) {
+    const reactionElement = document.createElement('div');
+    reactionElement.className = 'emoji-reaction';
+    reactionElement.textContent = emoji;
+    participantElement.appendChild(reactionElement);
+
+    // Remove the emoji after animation
+    setTimeout(() => reactionElement.remove(), 2000);
+  }
+}
