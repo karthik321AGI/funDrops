@@ -212,6 +212,15 @@ function connectWebSocket() {
       case 'ice_candidate':
         handleCallSignaling(data);
         break;
+
+      case 'emoji_reaction':
+        displayEmojiReaction(data.participantId, data.emoji);
+        break;
+
+      case 'chat_message':
+        displayChatMessage(data.participantName, data.message);
+        break;
+
     }
   };
 
@@ -438,6 +447,45 @@ function toggleMute() {
   localStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
   muteButton.innerHTML = isMuted ? '<i class="fas fa-microphone-slash"></i> Unmute' : '<i class="fas fa-microphone"></i> Mute';
   muteButton.classList.toggle('muted', isMuted);
+}
+
+
+function sendEmojiReaction(emoji) {
+  ws.send(JSON.stringify({
+    type: 'emoji_reaction',
+    emoji: emoji
+  }));
+}
+
+function sendChatMessage(message) {
+  ws.send(JSON.stringify({
+    type: 'chat_message',
+    message: message
+  }));
+}
+
+
+
+function displayChatMessage(participantName, message) {
+  const chatMessagesElement = document.getElementById('chatMessages');
+  const messageElement = document.createElement('div');
+  messageElement.className = 'chat-message';
+  messageElement.innerHTML = `<strong>${participantName}:</strong> ${message}`;
+  chatMessagesElement.appendChild(messageElement);
+  chatMessagesElement.scrollTop = chatMessagesElement.scrollHeight;
+}
+
+function displayEmojiReaction(participantId, emoji) {
+  const participantElement = document.querySelector(`[data-participant-id="${participantId}"]`);
+  if (participantElement) {
+    const reactionElement = document.createElement('div');
+    reactionElement.className = 'emoji-reaction';
+    reactionElement.textContent = emoji;
+    participantElement.appendChild(reactionElement);
+
+    // Remove the emoji after animation
+    setTimeout(() => reactionElement.remove(), 2000);
+  }
 }
 
 // Initialize WebSocket connection when the script loads

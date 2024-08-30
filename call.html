@@ -13,6 +13,20 @@
        <div class="app-header">
            <h1><i class="fas fa-tint"></i> FUN DROPS</h1>
        </div>
+       <div id="emojiReactions">
+        <button onclick="sendEmojiReaction('👍')">👍</button>
+        <button onclick="sendEmojiReaction('❤️')">❤️</button>
+        <button onclick="sendEmojiReaction('😂')">😂</button>
+        <button onclick="sendEmojiReaction('👏')">👏</button>
+      </div>
+
+      <div id="chatContainer">
+        <div id="chatMessages"></div>
+        <div id="chatInput">
+          <input type="text" id="messageInput" placeholder="Type a message...">
+          <button onclick="sendChatMessage(document.getElementById('messageInput').value)">Send</button>
+        </div>
+      </div>
        <div class="main-content">
            <h2 id="roomTitle"></h2>
            <div id="participantsList" class="participants-list"></div>
