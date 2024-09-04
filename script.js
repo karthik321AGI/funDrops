@@ -179,6 +179,7 @@ function connectWebSocket() {
   ws.onopen = () => {
     console.log('WebSocket connection established');
     if (window.location.pathname.includes('rooms.html')) {
+      showLoadingAnimation();
       ws.send(JSON.stringify({ type: 'get_rooms' }));
     } else if (window.location.pathname.includes('call.html')) {
       joinRoom(roomId);
@@ -190,6 +191,11 @@ function connectWebSocket() {
     console.log('Received message:', data);
 
     switch (data.type) {
+
+      case 'rooms_list':
+        hideLoadingAnimation(); // Hide loading animation
+        updateRoomsList(data.rooms);
+        break;
 
       case 'active_speaker':
         handleActiveSpeaker(data);
@@ -454,17 +460,18 @@ function leaveRoom() {
 function toggleMute() {
   isMuted = !isMuted;
   localStream.getAudioTracks().forEach(track => track.enabled = !isMuted);
-  muteButton.innerHTML = isMuted ? '<i class="fas fa-microphone-slash"></i> Unmute' : '<i class="fas fa-microphone"></i> Mute';
-  muteButton.classList.toggle('muted', isMuted);
+  const muteIcon = muteButton.querySelector('i');
+  if (isMuted) {
+    muteIcon.classList.remove('fa-microphone');
+    muteIcon.classList.add('fa-microphone-slash');
+    muteButton.classList.add('muted');
+  } else {
+    muteIcon.classList.remove('fa-microphone-slash');
+    muteIcon.classList.add('fa-microphone');
+    muteButton.classList.remove('muted');
+  }
 }
 
-
-function sendEmojiReaction(emoji) {
-  ws.send(JSON.stringify({
-    type: 'emoji_reaction',
-    emoji: emoji
-  }));
-}
 
 function sendChatMessage(message) {
   ws.send(JSON.stringify({
@@ -514,7 +521,9 @@ emojiButton.addEventListener('click', toggleEmojiList);
 chatButton.addEventListener('click', toggleChatPanel);
 closeChatButton.addEventListener('click', toggleChatPanel);
 
+
 function toggleEmojiList() {
+  const emojiList = document.getElementById('emojiList');
   emojiList.classList.toggle('hidden');
 }
 
@@ -522,13 +531,6 @@ function toggleChatPanel() {
   chatPanel.classList.toggle('open');
 }
 
-function sendEmojiReaction(emoji) {
-  ws.send(JSON.stringify({
-    type: 'emoji_reaction',
-    emoji: emoji
-  }));
-  emojiList.classList.add('hidden');
-}
 
 function sendChatMessage() {
   const message = messageInput.value.trim();
@@ -557,8 +559,48 @@ function displayEmojiReaction(participantId, emoji) {
     reactionElement.className = 'emoji-reaction';
     reactionElement.textContent = emoji;
     participantElement.appendChild(reactionElement);
+    reactionElement.style.fontSize = '40px';
 
     // Remove the emoji after animation
     setTimeout(() => reactionElement.remove(), 2000);
   }
+}
+
+
+closeChatButton.addEventListener('click', toggleChatPanel);
+document.addEventListener('click', handleOutsideClick);  // Add this line
+
+
+
+function toggleEmojiList(event) {
+  event.stopPropagation();
+  const emojiList = document.getElementById('emojiList');
+  emojiList.classList.toggle('hidden');
+}
+
+function handleOutsideClick(event) {
+  const emojiList = document.getElementById('emojiList');
+  const emojiButton = document.getElementById('emojiButton');
+
+  if (!emojiList.contains(event.target) && event.target !== emojiButton) {
+    emojiList.classList.add('hidden');
+  }
+}
+
+// Update the sendEmojiReaction function
+function sendEmojiReaction(emoji) {
+  ws.send(JSON.stringify({
+    type: 'emoji_reaction',
+    emoji: emoji
+  }));
+  document.getElementById('emojiList').classList.add('hidden');
+}
+
+
+function showLoadingAnimation() {
+  document.getElementById('loadingAnimation').style.display = 'flex';
+}
+
+function hideLoadingAnimation() {
+  document.getElementById('loadingAnimation').style.display = 'none';
 }
