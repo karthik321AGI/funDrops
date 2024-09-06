@@ -307,22 +307,54 @@ button i {
 
 .emoji-reaction {
   position: absolute;
-  font-size: 24px;
-  animation: float-up 2s ease-out;
+  font-size: 48px;
   pointer-events: none;
+  z-index: 1000;
+  transform-origin: center;
+  animation: emoji-pop 4s ease-out forwards;
+  /* Doubled to 3s */
+  color: #000;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  left: 50%;
+  top: 35%;
 }
 
-@keyframes float-up {
+@keyframes emoji-pop {
   0% {
-    transform: translateY(0);
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+  }
+
+  35% {
+    /* Adjusted for longer animation */
+    transform: translate(-50%, -50%) scale(1.5);
+    opacity: 1;
+  }
+
+  85% {
+    /* Keep it visible longer */
+    transform: translate(-50%, -50%) scale(1.5);
     opacity: 1;
   }
 
   100% {
-    transform: translateY(-50px);
+    transform: translate(-50%, -50%) scale(1.5);
     opacity: 0;
   }
 }
+
+.participant {
+  position: relative;
+}
+
+.participant-avatar {
+  position: relative;
+  /* Ensure it's relative for absolute positioning of emoji */
+  background-color: #f8f8f8;
+}
+
 
 
 #chatContainer {
@@ -425,7 +457,7 @@ button i {
 .chat-header {
   background-color: var(--primary-color);
   color: white;
-  padding: 0.5px 15px;
+  padding: 10px 30px;
   /* Reduced from 15px to 10px */
   display: flex;
   justify-content: space-between;
@@ -479,13 +511,6 @@ button i {
   height: 36px;
 }
 
-.close-chat-button {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 1.2rem;
-  cursor: pointer;
-}
 
 .hidden {
   display: none;
@@ -572,7 +597,7 @@ button i {
   justify-content: center;
   align-items: center;
   height: 100vh;
-  background-color: rgba(0, 0, 0, 0.5);
+  background-color: rgba(44, 62, 80, 0.9);
   position: fixed;
   top: 0;
   left: 0;
@@ -581,21 +606,72 @@ button i {
   z-index: 9999;
 }
 
-.loading-animation {
-  width: 50px;
-  height: 50px;
-  border: 5px solid #f3f3f3;
-  border-top: 5px solid #3498db;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
+.loading-content {
+  text-align: center;
 }
 
-@keyframes spin {
-  0% {
-    transform: rotate(0deg);
+.loading-text {
+  color: #f77272;
+  font-size: 24px;
+  margin-bottom: 50px;
+  font-weight: 300;
+  letter-spacing: 2px;
+  animation: fadeInOut 2s ease-in-out infinite;
+}
+
+.loading-animation {
+  display: flex;
+  justify-content: center;
+}
+
+.circle {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  margin: 0 10px;
+  animation: bounce 1.5s ease-in-out infinite;
+}
+
+.circle-1 {
+  background-color: #FF6B6B;
+}
+
+.circle-2 {
+  background-color: #4ECDC4;
+}
+
+.circle-3 {
+  background-color: #45B7D1;
+}
+
+.circle:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.circle:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes fadeInOut {
+
+  0%,
+  100% {
+    opacity: 0.3;
   }
 
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes bounce {
+
+  0%,
   100% {
-    transform: rotate(360deg);
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-20px);
   }
 }

@@ -166,6 +166,10 @@ function updateParticipantStyle(participantId, isActive) {
   }
 }
 
+document.addEventListener('DOMContentLoaded', () => {
+  showLoadingAnimation();
+});
+
 
 function connectWebSocket() {
   if (ws && ws.readyState === WebSocket.OPEN) {
@@ -180,7 +184,9 @@ function connectWebSocket() {
     console.log('WebSocket connection established');
     if (window.location.pathname.includes('rooms.html')) {
       showLoadingAnimation();
-      ws.send(JSON.stringify({ type: 'get_rooms' }));
+      setTimeout(() => {
+        ws.send(JSON.stringify({ type: 'get_rooms' }));
+      }, 500);
     } else if (window.location.pathname.includes('call.html')) {
       joinRoom(roomId);
     }
@@ -249,6 +255,7 @@ function joinRoom(roomId) {
 }
 
 function updateRoomsList(rooms) {
+  hideLoadingAnimation();
   roomsList.innerHTML = '';
   if (rooms.length === 0) {
     roomsList.innerHTML = '<p>No rooms available. Create one!</p>';
@@ -494,13 +501,19 @@ function displayChatMessage(participantName, message) {
 function displayEmojiReaction(participantId, emoji) {
   const participantElement = document.querySelector(`[data-participant-id="${participantId}"]`);
   if (participantElement) {
-    const reactionElement = document.createElement('div');
-    reactionElement.className = 'emoji-reaction';
-    reactionElement.textContent = emoji;
-    participantElement.appendChild(reactionElement);
+    const avatarElement = participantElement.querySelector('.participant-avatar');
+    if (avatarElement) {
+      const reactionElement = document.createElement('div');
+      reactionElement.className = 'emoji-reaction';
+      reactionElement.textContent = emoji;
 
-    // Remove the emoji after animation
-    setTimeout(() => reactionElement.remove(), 2000);
+      // No need to set left and top here as it's in the CSS now
+
+      avatarElement.appendChild(reactionElement);
+
+      // Remove the emoji after animation
+      setTimeout(() => reactionElement.remove(), 4000); // Doubled to 3000ms
+    }
   }
 }
 
@@ -513,13 +526,11 @@ const emojiButton = document.getElementById('emojiButton');
 const chatButton = document.getElementById('chatButton');
 const emojiList = document.getElementById('emojiList');
 const chatPanel = document.getElementById('chatPanel');
-const closeChatButton = document.getElementById('closeChatButton');
 const messageInput = document.getElementById('messageInput');
 
 // Event Listeners
 emojiButton.addEventListener('click', toggleEmojiList);
 chatButton.addEventListener('click', toggleChatPanel);
-closeChatButton.addEventListener('click', toggleChatPanel);
 
 
 function toggleEmojiList() {
@@ -527,10 +538,22 @@ function toggleEmojiList() {
   emojiList.classList.toggle('hidden');
 }
 
-function toggleChatPanel() {
+function toggleChatPanel(event) {
+  event.stopPropagation();
   chatPanel.classList.toggle('open');
+  if (chatPanel.classList.contains('open')) {
+    document.addEventListener('click', handleOutsideClickChat);
+  } else {
+    document.removeEventListener('click', handleOutsideClickChat);
+  }
 }
 
+function handleOutsideClickChat(event) {
+  if (!chatPanel.contains(event.target) && event.target !== chatButton) {
+    chatPanel.classList.remove('open');
+    document.removeEventListener('click', handleOutsideClickChat);
+  }
+}
 
 function sendChatMessage() {
   const message = messageInput.value.trim();
@@ -567,15 +590,29 @@ function displayEmojiReaction(participantId, emoji) {
 }
 
 
-closeChatButton.addEventListener('click', toggleChatPanel);
+chatButton.addEventListener('click', (event) => {
+  event.stopPropagation();
+  toggleChatPanel();
+});
 document.addEventListener('click', handleOutsideClick);  // Add this line
 
 
 
 function toggleEmojiList(event) {
   event.stopPropagation();
-  const emojiList = document.getElementById('emojiList');
   emojiList.classList.toggle('hidden');
+  if (!emojiList.classList.contains('hidden')) {
+    document.addEventListener('click', handleOutsideClickEmoji);
+  } else {
+    document.removeEventListener('click', handleOutsideClickEmoji);
+  }
+}
+
+function handleOutsideClickEmoji(event) {
+  if (!emojiList.contains(event.target) && event.target !== emojiButton) {
+    emojiList.classList.add('hidden');
+    document.removeEventListener('click', handleOutsideClickEmoji);
+  }
 }
 
 function handleOutsideClick(event) {
@@ -593,12 +630,17 @@ function sendEmojiReaction(emoji) {
     type: 'emoji_reaction',
     emoji: emoji
   }));
-  document.getElementById('emojiList').classList.add('hidden');
+  emojiList.classList.add('hidden');
+  document.removeEventListener('click', handleOutsideClickEmoji);
 }
 
 
 function showLoadingAnimation() {
-  document.getElementById('loadingAnimation').style.display = 'flex';
+  const loadingAnimation = document.getElementById('loadingAnimation');
+  loadingAnimation.style.display = 'flex';
+  setTimeout(() => {
+    loadingAnimation.style.display = 'none';
+  }, 3000); // Hide after 3 seconds
 }
 
 function hideLoadingAnimation() {
