@@ -183,10 +183,7 @@ function connectWebSocket() {
   ws.onopen = () => {
     console.log('WebSocket connection established');
     if (window.location.pathname.includes('rooms.html')) {
-      showLoadingAnimation();
-      setTimeout(() => {
-        ws.send(JSON.stringify({ type: 'get_rooms' }));
-      }, 500);
+      ws.send(JSON.stringify({ type: 'get_rooms' }));
     } else if (window.location.pathname.includes('call.html')) {
       joinRoom(roomId);
     }
@@ -211,6 +208,7 @@ function connectWebSocket() {
         break;
       case 'room_created':
       case 'room_joined':
+        resetUnreadMessageCount();
         handleRoomJoined(data);
         break;
       case 'participant_joined':
@@ -230,7 +228,7 @@ function connectWebSocket() {
         break;
 
       case 'chat_message':
-        displayChatMessage(data.participantName, data.message);
+        displayChatMessage(data.participantName, data.message, data.timestamp);
         break;
 
     }
@@ -538,20 +536,42 @@ function toggleEmojiList() {
   emojiList.classList.toggle('hidden');
 }
 
+let unreadMessageCount = 0;
+let isChatOpen = false;
+let lastSeenMessageTimestamp = Date.now();
+
 function toggleChatPanel(event) {
   event.stopPropagation();
   chatPanel.classList.toggle('open');
-  if (chatPanel.classList.contains('open')) {
+  isChatOpen = chatPanel.classList.contains('open');
+  if (isChatOpen) {
+    resetUnreadMessageCount();
     document.addEventListener('click', handleOutsideClickChat);
   } else {
     document.removeEventListener('click', handleOutsideClickChat);
   }
 }
 
+function resetUnreadMessageCount() {
+  unreadMessageCount = 0;
+  lastSeenMessageTimestamp = Date.now();
+  updateChatBadge();
+}
+
+function updateChatBadge() {
+  const chatBadge = document.getElementById('chatBadge');
+  if (unreadMessageCount > 0) {
+    chatBadge.textContent = unreadMessageCount;
+    chatBadge.classList.remove('hidden');
+  } else {
+    chatBadge.classList.add('hidden');
+  }
+}
+
+
 function handleOutsideClickChat(event) {
   if (!chatPanel.contains(event.target) && event.target !== chatButton) {
-    chatPanel.classList.remove('open');
-    document.removeEventListener('click', handleOutsideClickChat);
+    toggleChatPanel(event);
   }
 }
 
@@ -566,13 +586,18 @@ function sendChatMessage() {
   }
 }
 
-function displayChatMessage(participantName, message) {
+function displayChatMessage(participantName, message, timestamp) {
   const chatMessagesElement = document.getElementById('chatMessages');
   const messageElement = document.createElement('div');
   messageElement.className = 'chat-message';
   messageElement.innerHTML = `<strong>${participantName}:</strong> ${message}`;
   chatMessagesElement.appendChild(messageElement);
   chatMessagesElement.scrollTop = chatMessagesElement.scrollHeight;
+
+  if (timestamp > lastSeenMessageTimestamp && !isChatOpen) {
+    unreadMessageCount++;
+    updateChatBadge();
+  }
 }
 
 function displayEmojiReaction(participantId, emoji) {
@@ -636,13 +661,14 @@ function sendEmojiReaction(emoji) {
 
 
 function showLoadingAnimation() {
-  const loadingAnimation = document.getElementById('loadingAnimation');
   loadingAnimation.style.display = 'flex';
-  setTimeout(() => {
-    loadingAnimation.style.display = 'none';
-  }, 3000); // Hide after 3 seconds
 }
 
 function hideLoadingAnimation() {
-  document.getElementById('loadingAnimation').style.display = 'none';
+  loadingAnimation.style.display = 'none';
 }
+
+
+
+document.getElementById('chatButton').addEventListener('click', toggleChatPanel);
+updateChatBadge();

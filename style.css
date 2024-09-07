@@ -614,9 +614,9 @@ button i {
   color: #f77272;
   font-size: 24px;
   margin-bottom: 50px;
-  font-weight: 300;
+  font-weight: 600;
   letter-spacing: 2px;
-  animation: fadeInOut 2s ease-in-out infinite;
+  animation: fadeInOut 1s ease-in-out infinite;
 }
 
 .loading-animation {
@@ -673,5 +673,42 @@ button i {
 
   50% {
     transform: translateY(-20px);
+  }
+}
+
+
+/* ... (existing styles) ... */
+
+.feature-button-container {
+  position: relative;
+  display: inline-block;
+}
+
+.chat-badge {
+  position: absolute;
+  top: 2px;
+  right: 5px;
+  background-color: skyblue;
+  color: black;
+  border-radius: 50%;
+  padding: 2px 6px;
+  font-size: 12px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 10px;
+  min-height: 10px;
+}
+
+.hidden {
+  display: none;
+}
+
+/* Ensure the badge is visible on both mobile and desktop */
+@media (max-width: 768px) {
+  .chat-badge {
+    top: 0;
+    right: 0;
   }
 }
