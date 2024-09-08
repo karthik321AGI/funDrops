@@ -275,14 +275,15 @@ function updateRoomsList(rooms) {
     });
   }
 }
-
-function getRandomColor(index) {
+function getRandomColor() {
   const colors = [
     '#FF6B6B', '#4ECDC4', '#45B7D1', '#FFA07A', '#98D8C8', '#F67280', '#C06C84',
     '#6A0572', '#FEBF10', '#16A085', '#F39C12', '#3498DB', '#9B59B6', '#1ABC9C',
-    '#E74C3C', '#2980B9', '#E67E22', '#2ECC71', '#8E44AD', '#D35400', '#7F8C8D'
+    '#E74C3C', '#2980B9', '#E67E22', '#2ECC71', '#8E44AD', '#D35400', '#7F8C8D',
+    '#27AE60', '#C0392B', '#BDC3C7', '#2C3E50', '#95A5A6', '#34495E', '#D1E231',
+    '#F9BF3B', '#2F4F4F', '#4682B4', '#8A2BE2', '#EE82EE', '#FA8072'
   ];
-  return colors[index % colors.length];
+  return colors[Math.floor(Math.random() * colors.length)];
 }
 
 function handleRoomJoined(data) {
@@ -337,7 +338,6 @@ function updateParticipantsList(participants) {
     participantsList.appendChild(participantElement);
   });
 }
-
 
 function getRandomColor() {
   const colors = [
@@ -486,16 +486,6 @@ function sendChatMessage(message) {
 }
 
 
-
-function displayChatMessage(participantName, message) {
-  const chatMessagesElement = document.getElementById('chatMessages');
-  const messageElement = document.createElement('div');
-  messageElement.className = 'chat-message';
-  messageElement.innerHTML = `<strong>${participantName}:</strong> ${message}`;
-  chatMessagesElement.appendChild(messageElement);
-  chatMessagesElement.scrollTop = chatMessagesElement.scrollHeight;
-}
-
 function displayEmojiReaction(participantId, emoji) {
   const participantElement = document.querySelector(`[data-participant-id="${participantId}"]`);
   if (participantElement) {
@@ -619,7 +609,7 @@ chatButton.addEventListener('click', (event) => {
   event.stopPropagation();
   toggleChatPanel();
 });
-document.addEventListener('click', handleOutsideClick);  // Add this line
+document.addEventListener('click', handleOutsideClick);
 
 
 
@@ -649,7 +639,7 @@ function handleOutsideClick(event) {
   }
 }
 
-// Update the sendEmojiReaction function
+
 function sendEmojiReaction(emoji) {
   ws.send(JSON.stringify({
     type: 'emoji_reaction',
@@ -659,7 +649,6 @@ function sendEmojiReaction(emoji) {
   document.removeEventListener('click', handleOutsideClickEmoji);
 }
 
-
 function showLoadingAnimation() {
   loadingAnimation.style.display = 'flex';
 }
@@ -667,8 +656,6 @@ function showLoadingAnimation() {
 function hideLoadingAnimation() {
   loadingAnimation.style.display = 'none';
 }
-
-
 
 document.getElementById('chatButton').addEventListener('click', toggleChatPanel);
 updateChatBadge();
